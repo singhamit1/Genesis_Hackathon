@@ -39,15 +39,4 @@ smart-network-optimization/
 - Simple **reallocation policy**: shift bandwidth from underutilized to overutilized devices/links based on predicted risk and a utilization threshold.
 - Extensions: time-series forecasting (ARIMA/LSTM), anomaly detection for outages, and reinforcement learning for closed-loop control.
 
-## Evaluation
-- Classification: Accuracy, Precision, Recall, F1, Confusion Matrix.
-- Forecasting (optional): RMSE/MAE.
 
-## Roadmap
-- Add LSTM/ARIMA forecasters.
-- Add real-time inference pipeline (message queue + API).
-- Enhance dashboard with live alerts and recommended actions.
-
----
-
-> This repository is **ready-to-fork**. Replace baselines with your models, and connect to real telemetry when available.
