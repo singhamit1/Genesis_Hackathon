@@ -13,61 +13,27 @@ smart-network-optimization/
 │   └── raw/                    # raw dumps (optional)
 ├── dashboards/
 │   └── streamlit_app.py
-├── docs/
-│   └── design.md
 ├── models/                     # saved models
 ├── notebooks/
-│   ├── 01_eda.ipynb
-│   └── 02_baseline_models.ipynb
+│   └── 01_eda.ipynb
 ├── outputs/                    # predictions/metrics
 ├── scripts/
 │   ├── train.py
 │   └── predict.py
 ├── src/
 │   ├── data/
-│   │   ├── load.py
-│   │   └── features.py
 │   ├── models/
-│   │   ├── train_classifier.py
-│   │   ├── train_forecaster.py
-│   │   └── infer.py
 │   ├── reallocator/
-│   │   └── rules.py
 │   └── utils/
-│       ├── config.py
-│       └── eval.py
 ├── tests/
-│   ├── test_data_loading.py
-│   └── test_features.py
+│   └── test_data_loading.py
 ├── .github/workflows/ci.yml
 ├── .gitignore
 ├── LICENSE
 └── requirements.txt
 ```
 
-## Quick Start
 
-1. **Clone & install**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Drop data** (CSV files) into `data/` and update any filenames in `configs/config.yaml` if needed.
-
-3. **Run baseline training**
-   ```bash
-   python scripts/train.py
-   ```
-
-4. **Generate predictions for the next interval**
-   ```bash
-   python scripts/predict.py
-   ```
-
-5. **(Optional) Launch dashboard**
-   ```bash
-   streamlit run dashboards/streamlit_app.py
-   ```
 
 ## Approach (baseline)
 
