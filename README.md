@@ -11,8 +11,6 @@ smart-network-optimization/
 │   ├── README.md
 │   ├── processed/              # generated
 │   └── raw/                    # raw dumps (optional)
-├── dashboards/
-│   └── streamlit_app.py
 ├── models/                     # saved models
 ├── notebooks/
 │   └── 01_eda.ipynb
