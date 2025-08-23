@@ -20,8 +20,8 @@ def load_models():
     """Load pre-trained XGBoost models for each router"""
     try:
         models = {}
-        for router in ['Router_A', 'Router_B', 'Router_C']:
-            models[router] = joblib.load(f"model_{router}.pkl")
+        for router in ['A', 'B', 'C']:
+            models[router] = joblib.load(f"../models/model{router}_p.pkl")
         return models
     except FileNotFoundError as e:
         st.error(f"Model files not found. Please ensure model files are in the same directory: {e}")
