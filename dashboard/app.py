@@ -21,7 +21,7 @@ def load_models():
     """Load pre-trained XGBoost models for each router"""
     try:
         models = {}
-        current_dir = os.path.dirname(os.path.abspath(__file__))  # dashboard foldergi
+        current_dir = os.path.dirname(os.path.abspath(__file__))  # dashboard folder
         parent_dir = os.path.dirname(current_dir)  # project_folder
         models_dir = os.path.join(parent_dir, "models")
         
@@ -51,22 +51,14 @@ def create_training_samples_single(data, target_timestamp, hours=12):
     """
     Create features for a single prediction using last 12 hours of data
     """
-    # Convert target_timestamp to datetime for arithmetic
-    if isinstance(target_timestamp, str):
-        target_dt = pd.to_datetime(target_timestamp).to_pydatetime()
-    elif isinstance(target_timestamp, pd.Timestamp):
-        target_dt = target_timestamp.to_pydatetime()
-    else:
-        target_dt = target_timestamp
+    # Ensure target_timestamp is a pandas Timestamp
+    target_ts = pd.to_datetime(target_timestamp)
     
-    # Use Python datetime arithmetic
-    window_start_dt = target_dt - timedelta(hours=hours)
-    window_end_dt = target_dt
+    # Calculate window boundaries using pandas Timedelta
+    window_start = target_ts - pd.Timedelta(hours=hours)
+    window_end = target_ts
     
-    # Convert back to pandas timestamps for filtering
-    window_start = pd.to_datetime(window_start_dt)
-    window_end = pd.to_datetime(window_end_dt)
-    
+    # Filter data within the window
     window_data = data[(data['Timestamp'] >= window_start) & (data['Timestamp'] < window_end)]
     
     if window_data.empty:
@@ -224,15 +216,13 @@ def bandwidth_recommendation(window_data, congestion_probs):
 def create_visualizations(df, target_time, congestion_probs, recommendations):
     """Create visualizations for the dashboard"""
     # Convert target_time to string for Plotly add_vline
-    if hasattr(target_time, "strftime"):
-        target_time_str = target_time.strftime('%Y-%m-%d %H:%M:%S')
-    else:
-        target_time_str = str(target_time)
+    target_time_str = pd.to_datetime(target_time).strftime('%Y-%m-%d %H:%M:%S')
+    
+    # 1. Traffic Volume Over Time
     fig_traffic = px.line(df, x='Timestamp', y='Traffic Volume (MB/s)', 
                          color='Device Name', title='Traffic Volume Over Time')
     fig_traffic.add_vline(x=target_time_str, line_dash="dash", line_color="red", 
                          annotation_text="Prediction Point")
-    
     
     # 2. Congestion Probabilities
     router_names = list(congestion_probs.keys())
@@ -309,21 +299,12 @@ def main():
             else:
                 df['Impact_encoded'] = 0
             
-            # Get latest timestamp and create prediction window using datetime arithmetic
+            # Get latest timestamp and create prediction window using pandas operations
             latest_time = df['Timestamp'].max()
-            
-            # Convert to datetime for arithmetic
-            if isinstance(latest_time, pd.Timestamp):
-                latest_dt = latest_time.to_pydatetime()
-            else:
-                latest_dt = pd.to_datetime(latest_time).to_pydatetime()
-            
-            # Calculate prediction time
-            prediction_dt = latest_dt + timedelta(hours=1)
-            prediction_time = pd.to_datetime(prediction_dt)
+            prediction_time = latest_time + pd.Timedelta(hours=1)
             
             st.success(f"✅ Data loaded successfully! {len(df)} records")
-            st.info(f"📅 Latest  {latest_time}")
+            st.info(f"📅 Latest data: {latest_time}")
             st.info(f"🔮 Predicting congestion for: {prediction_time}")
             
             # Create columns for layout
@@ -356,10 +337,8 @@ def main():
                     if congestion_probs is None:
                         st.error("❌ Not enough data for prediction. Need at least 12 hours of historical data.")
                     else:
-                        # Get window data for recommendations using datetime arithmetic
-                        window_start_dt = latest_dt - timedelta(hours=12)
-                        window_start = pd.to_datetime(window_start_dt)
-                        
+                        # Get window data for recommendations using pandas operations
+                        window_start = latest_time - pd.Timedelta(hours=12)
                         window_data = df[(df['Timestamp'] >= window_start) & 
                                        (df['Timestamp'] <= latest_time)]
                         
