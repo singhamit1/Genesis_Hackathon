@@ -391,67 +391,73 @@ def main():
                             
                             # Get recommendations
                             recommendations = bandwidth_recommendation(window_data, congestion_probs)
-                        
-                        # Display results
-                        st.subheader(f"🎯 Congestion Predictions for {prediction_time}")
-                        
-                        # Create metrics
-                        prob_cols = st.columns(3)
-                        for i, (router, prob) in enumerate(congestion_probs.items()):
-                            with prob_cols[i]:
-                                color = "🔴" if prob > 0.7 else "🟡" if prob > 0.4 else "🟢"
-                                st.metric(
-                                    label=f"{color} {router}",
-                                    value=f"{prob:.1%}",
-                                    delta=None
-                                )
-                        
-                        # Recommendations
-                        st.subheader("💡 Bandwidth Recommendations")
-                        for router, rec in recommendations.items():
-                            with st.expander(f"{router} - {rec['action'].replace('_', ' ').title()}"):
-                                col_a, col_b = st.columns(2)
-                                
-                                with col_a:
-                                    if rec['amount'] > 0:
-                                        st.success(f"📈 Increase by {rec['amount']} MB/s")
-                                    elif rec['amount'] < 0:
-                                        st.info(f"📉 Decrease by {abs(rec['amount'])} MB/s")
-                                    else:
-                                        st.info("➡️ Maintain current allocation")
+                            
+                            # Display results
+                            st.subheader(f"🎯 Congestion Predictions for {prediction_time}")
+                            
+                            # Create metrics
+                            prob_cols = st.columns(3)
+                            for i, (router, prob) in enumerate(congestion_probs.items()):
+                                with prob_cols[i]:
+                                    color = "🔴" if prob > 0.7 else "🟡" if prob > 0.4 else "🟢"
+                                    st.metric(
+                                        label=f"{color} {router}",
+                                        value=f"{prob:.1%}",
+                                        delta=None
+                                    )
+                            
+                            # Recommendations
+                            st.subheader("💡 Bandwidth Recommendations")
+                            for router, rec in recommendations.items():
+                                with st.expander(f"{router} - {rec['action'].replace('_', ' ').title()}"):
+                                    col_a, col_b = st.columns(2)
                                     
-                                    st.write(f"**Utilization:** {rec['utilization']:.1%}")
-                                    st.write(f"**Congestion Risk:** {rec['congestion_prob']:.1%}")
-                                
-                                with col_b:
-                                    st.write(f"**Current Allocated:** {rec['current_allocated']:.1f} MB/s")
-                                    st.write(f"**Current Used:** {rec['current_used']:.1f} MB/s")
-                                    st.write(f"**Reason:** {rec['reason']}")
-                        
-                        # Visualizations
-                        st.subheader("📊 Visualizations")
-                        fig_traffic, fig_prob, fig_util = create_visualizations(
-                            df, latest_time, congestion_probs, recommendations
-                        )
-                        
-                        st.plotly_chart(fig_traffic, use_container_width=True)
-                        
-                        viz_col1, viz_col2 = st.columns(2)
-                        with viz_col1:
-                            st.plotly_chart(fig_prob, use_container_width=True)
-                        with viz_col2:
-                            st.plotly_chart(fig_util, use_container_width=True)
-                        
-                        # Store in session state for history
-                        if 'prediction_history' not in st.session_state:
-                            st.session_state.prediction_history = []
-                        
-                        st.session_state.prediction_history.append({
-                            'timestamp': datetime.now(),
-                            'prediction_for': prediction_time,
-                            'congestion_probs': congestion_probs,
-                            'recommendations': recommendations
-                        })
+                                    with col_a:
+                                        if rec['amount'] > 0:
+                                            st.success(f"📈 Increase by {rec['amount']} MB/s")
+                                        elif rec['amount'] < 0:
+                                            st.info(f"📉 Decrease by {abs(rec['amount'])} MB/s")
+                                        else:
+                                            st.info("➡️ Maintain current allocation")
+                                        
+                                        st.write(f"**Utilization:** {rec['utilization']:.1%}")
+                                        st.write(f"**Congestion Risk:** {rec['congestion_prob']:.1%}")
+                                    
+                                    with col_b:
+                                        st.write(f"**Current Allocated:** {rec['current_allocated']:.1f} MB/s")
+                                        st.write(f"**Current Used:** {rec['current_used']:.1f} MB/s")
+                                        st.write(f"**Reason:** {rec['reason']}")
+                            
+                            # Visualizations
+                            st.subheader("📊 Visualizations")
+                            fig_traffic, fig_prob, fig_util = create_visualizations(
+                                df, latest_time, congestion_probs, recommendations
+                            )
+                            
+                            st.plotly_chart(fig_traffic, use_container_width=True)
+                            
+                            viz_col1, viz_col2 = st.columns(2)
+                            with viz_col1:
+                                st.plotly_chart(fig_prob, use_container_width=True)
+                            with viz_col2:
+                                st.plotly_chart(fig_util, use_container_width=True)
+                            
+                            # Store in session state for history
+                            if 'prediction_history' not in st.session_state:
+                                st.session_state.prediction_history = []
+                            
+                            st.session_state.prediction_history.append({
+                                'timestamp': datetime.now(),
+                                'prediction_for': prediction_time,
+                                'congestion_probs': congestion_probs,
+                                'recommendations': recommendations
+                            })
+                    
+                    except Exception as prediction_error:
+                        st.error(f"❌ Error during prediction: {str(prediction_error)}")
+                        st.write(f"Error type: {type(prediction_error)}")
+                        import traceback
+                        st.code(traceback.format_exc())
             
             # Prediction History
             if 'prediction_history' in st.session_state and st.session_state.prediction_history:
