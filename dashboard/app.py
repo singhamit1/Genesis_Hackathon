@@ -231,14 +231,9 @@ def bandwidth_recommendation(window_data, congestion_probs):
 
 def create_visualizations(df, target_time, congestion_probs, recommendations):
     """Create visualizations for the dashboard"""
-    # Convert target_time to string for Plotly add_vline
-    target_time_str = pd.to_datetime(target_time).strftime('%Y-%m-%d %H:%M:%S')
-    
-    # 1. Traffic Volume Over Time
+    # 1. Traffic Volume Over Time (without the problematic vertical line for now)
     fig_traffic = px.line(df, x='Timestamp', y='Traffic Volume (MB/s)', 
                          color='Device Name', title='Traffic Volume Over Time')
-    fig_traffic.add_vline(x=target_time_str, line_dash="dash", line_color="red", 
-                         annotation_text="Prediction Point")
     
     # 2. Congestion Probabilities
     router_names = list(congestion_probs.keys())
@@ -319,10 +314,23 @@ def main():
                 'total_logins'
             ]
             
+            st.write("Debug: Converting numeric columns...")
             for col in numeric_columns:
                 if col in df.columns:
+                    st.write(f"Converting {col} - original dtype: {df[col].dtype}")
+                    # Check for mixed types
+                    sample_values = df[col].head(10).tolist()
+                    st.write(f"Sample values: {sample_values}")
+                    
                     df[col] = pd.to_numeric(df[col], errors='coerce')
                     df[col] = df[col].fillna(0)  # Fill NaN with 0
+                    st.write(f"After conversion - dtype: {df[col].dtype}")
+            
+            # Verify no mixed types in Timestamp
+            st.write("Debug: Checking Timestamp column for mixed types...")
+            timestamp_sample = df['Timestamp'].head(10).tolist()
+            st.write(f"Timestamp sample: {timestamp_sample}")
+            st.write(f"Timestamp dtype: {df['Timestamp'].dtype}")
             
             # Handle Impact column encoding
             if 'Impact' in df.columns:
@@ -430,17 +438,31 @@ def main():
                             
                             # Visualizations
                             st.subheader("📊 Visualizations")
-                            fig_traffic, fig_prob, fig_util = create_visualizations(
-                                df, latest_time, congestion_probs, recommendations
-                            )
                             
-                            st.plotly_chart(fig_traffic, use_container_width=True)
+                            # Add some debugging for the visualization
+                            st.write(f"Debug: Creating visualizations with target_time: {latest_time} (type: {type(latest_time)})")
                             
-                            viz_col1, viz_col2 = st.columns(2)
-                            with viz_col1:
-                                st.plotly_chart(fig_prob, use_container_width=True)
-                            with viz_col2:
-                                st.plotly_chart(fig_util, use_container_width=True)
+                            try:
+                                fig_traffic, fig_prob, fig_util = create_visualizations(
+                                    df, latest_time, congestion_probs, recommendations
+                                )
+                                
+                                st.plotly_chart(fig_traffic, use_container_width=True)
+                                
+                                viz_col1, viz_col2 = st.columns(2)
+                                with viz_col1:
+                                    st.plotly_chart(fig_prob, use_container_width=True)
+                                with viz_col2:
+                                    st.plotly_chart(fig_util, use_container_width=True)
+                                    
+                            except Exception as viz_error:
+                                st.error(f"Error creating visualizations: {str(viz_error)}")
+                                st.write("Showing basic charts without advanced features...")
+                                
+                                # Fallback: simple line chart without vertical line
+                                fig_simple = px.line(df, x='Timestamp', y='Traffic Volume (MB/s)', 
+                                                   color='Device Name', title='Traffic Volume Over Time')
+                                st.plotly_chart(fig_simple, use_container_width=True)
                             
                             # Store in session state for history
                             if 'prediction_history' not in st.session_state:
