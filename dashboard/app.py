@@ -59,18 +59,11 @@ def create_training_samples_single(data, target_timestamp, hours=12):
         window_start = target_ts - pd.Timedelta(hours=hours)
         window_end = target_ts
         
-        st.write(f"Debug: Target timestamp: {target_ts}")
-        st.write(f"Debug: Window start: {window_start}")
-        st.write(f"Debug: Window end: {window_end}")
-        
         # Filter data within the window
         window_data = data[(data['Timestamp'] >= window_start) & (data['Timestamp'] < window_end)]
         
         if window_data.empty:
-            st.write("Debug: No data in window")
             return None
-        
-        st.write(f"Debug: Window data shape: {window_data.shape}")
         
         features = []
         time_indexed = sorted(window_data['Timestamp'].unique())
@@ -97,12 +90,10 @@ def create_training_samples_single(data, target_timestamp, hours=12):
                 else:
                     features.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         
-        st.write(f"Debug: Features length: {len(features)}")
         return np.array(features, dtype=np.float64).reshape(1, -1)
         
     except Exception as e:
         st.error(f"Error in create_training_samples_single: {str(e)}")
-        st.write(f"Error type: {type(e)}")
         return None
 
 def predict_congestion_proba(df, models, target_timestamp):
@@ -289,9 +280,6 @@ def main():
             # Load and process data
             df = pd.read_csv(uploaded_file)
             
-            st.write("Debug: Data types after loading:")
-            st.write(df.dtypes)
-            
             # Ensure Timestamp column is properly converted
             df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
             
@@ -314,23 +302,10 @@ def main():
                 'total_logins'
             ]
             
-            st.write("Debug: Converting numeric columns...")
             for col in numeric_columns:
                 if col in df.columns:
-                    st.write(f"Converting {col} - original dtype: {df[col].dtype}")
-                    # Check for mixed types
-                    sample_values = df[col].head(10).tolist()
-                    st.write(f"Sample values: {sample_values}")
-                    
                     df[col] = pd.to_numeric(df[col], errors='coerce')
                     df[col] = df[col].fillna(0)  # Fill NaN with 0
-                    st.write(f"After conversion - dtype: {df[col].dtype}")
-            
-            # Verify no mixed types in Timestamp
-            st.write("Debug: Checking Timestamp column for mixed types...")
-            timestamp_sample = df['Timestamp'].head(10).tolist()
-            st.write(f"Timestamp sample: {timestamp_sample}")
-            st.write(f"Timestamp dtype: {df['Timestamp'].dtype}")
             
             # Handle Impact column encoding
             if 'Impact' in df.columns:
@@ -346,11 +321,6 @@ def main():
             
             # Ensure Impact_encoded is numeric
             df['Impact_encoded'] = pd.to_numeric(df['Impact_encoded'], errors='coerce').fillna(0)
-            
-            st.write("Debug: Data types after processing:")
-            st.write(df.dtypes)
-            st.write("Debug: Sample of processed data:")
-            st.write(df.head())
             
             # Get latest timestamp and create prediction window using pandas operations
             latest_time = df['Timestamp'].max()
@@ -386,7 +356,6 @@ def main():
                 with st.spinner("Running predictions..."):
                     try:
                         # Make predictions
-                        st.write("Debug: Starting predictions...")
                         congestion_probs = predict_congestion_proba(df, models, prediction_time)
 
                         if congestion_probs is None:
@@ -438,9 +407,6 @@ def main():
                             
                             # Visualizations
                             st.subheader("📊 Visualizations")
-                            
-                            # Add some debugging for the visualization
-                            st.write(f"Debug: Creating visualizations with target_time: {latest_time} (type: {type(latest_time)})")
                             
                             try:
                                 fig_traffic, fig_prob, fig_util = create_visualizations(
