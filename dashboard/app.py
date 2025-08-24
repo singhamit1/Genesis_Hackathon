@@ -51,43 +51,59 @@ def create_training_samples_single(data, target_timestamp, hours=12):
     """
     Create features for a single prediction using last 12 hours of data
     """
-    # Ensure target_timestamp is a pandas Timestamp
-    target_ts = pd.to_datetime(target_timestamp)
-    
-    # Calculate window boundaries using pandas Timedelta
-    window_start = target_ts - pd.Timedelta(hours=hours)
-    window_end = target_ts
-    
-    # Filter data within the window
-    window_data = data[(data['Timestamp'] >= window_start) & (data['Timestamp'] < window_end)]
-    
-    if window_data.empty:
+    try:
+        # Ensure target_timestamp is a pandas Timestamp
+        target_ts = pd.to_datetime(target_timestamp)
+        
+        # Calculate window boundaries using pandas Timedelta
+        window_start = target_ts - pd.Timedelta(hours=hours)
+        window_end = target_ts
+        
+        st.write(f"Debug: Target timestamp: {target_ts}")
+        st.write(f"Debug: Window start: {window_start}")
+        st.write(f"Debug: Window end: {window_end}")
+        
+        # Filter data within the window
+        window_data = data[(data['Timestamp'] >= window_start) & (data['Timestamp'] < window_end)]
+        
+        if window_data.empty:
+            st.write("Debug: No data in window")
+            return None
+        
+        st.write(f"Debug: Window data shape: {window_data.shape}")
+        
+        features = []
+        time_indexed = sorted(window_data['Timestamp'].unique())
+        
+        for ts in time_indexed:
+            ts_data = window_data[window_data['Timestamp'] == ts]
+            for router in ['Router_A', 'Router_B', 'Router_C']:
+                router_data = ts_data[ts_data['Device Name'] == router]
+                if not router_data.empty:
+                    row = router_data.iloc[0]
+                    # Convert all values to float to ensure numeric types
+                    feature_values = [
+                        float(row['Traffic Volume (MB/s)']),
+                        float(row['Latency (ms)']),
+                        float(row['Bandwidth Used (MB/s)']),
+                        float(row['Bandwidth Allocated (MB/s)']),
+                        float(row['total_avg_app_traffic']),
+                        float(row['total_peak_app_traffic']),
+                        float(row['Impact_encoded']),
+                        float(row['total_peak_user_usage']),
+                        float(row['total_logins'])
+                    ]
+                    features.extend(feature_values)
+                else:
+                    features.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        
+        st.write(f"Debug: Features length: {len(features)}")
+        return np.array(features, dtype=np.float64).reshape(1, -1)
+        
+    except Exception as e:
+        st.error(f"Error in create_training_samples_single: {str(e)}")
+        st.write(f"Error type: {type(e)}")
         return None
-    
-    features = []
-    time_indexed = sorted(window_data['Timestamp'].unique())
-    
-    for ts in time_indexed:
-        ts_data = window_data[window_data['Timestamp'] == ts]
-        for router in ['Router_A', 'Router_B', 'Router_C']:
-            router_data = ts_data[ts_data['Device Name'] == router]
-            if not router_data.empty:
-                row = router_data.iloc[0]
-                features.extend([
-                    row['Traffic Volume (MB/s)'],
-                    row['Latency (ms)'],
-                    row['Bandwidth Used (MB/s)'],
-                    row['Bandwidth Allocated (MB/s)'],
-                    row['total_avg_app_traffic'],
-                    row['total_peak_app_traffic'],
-                    row['Impact_encoded'],
-                    row['total_peak_user_usage'],
-                    row['total_logins']
-                ])
-            else:
-                features.extend([0, 0, 0, 0, 0, 0, 0, 0, 0])
-    
-    return np.array(features).reshape(1, -1)
 
 def predict_congestion_proba(df, models, target_timestamp):
     """
@@ -278,6 +294,9 @@ def main():
             # Load and process data
             df = pd.read_csv(uploaded_file)
             
+            st.write("Debug: Data types after loading:")
+            st.write(df.dtypes)
+            
             # Ensure Timestamp column is properly converted
             df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
             
@@ -288,16 +307,42 @@ def main():
                 st.error("❌ No valid data found. Please check your timestamp format.")
                 st.stop()
             
+            # Convert all numeric columns to proper numeric types
+            numeric_columns = [
+                'Traffic Volume (MB/s)',
+                'Latency (ms)', 
+                'Bandwidth Used (MB/s)',
+                'Bandwidth Allocated (MB/s)',
+                'total_avg_app_traffic',
+                'total_peak_app_traffic',
+                'total_peak_user_usage',
+                'total_logins'
+            ]
+            
+            for col in numeric_columns:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                    df[col] = df[col].fillna(0)  # Fill NaN with 0
+            
             # Handle Impact column encoding
             if 'Impact' in df.columns:
-                df['Impact'] = df['Impact'].fillna('None')
+                df['Impact'] = df['Impact'].fillna('None').astype(str)
                 try:
                     df['Impact_encoded'] = le_impact.transform(df['Impact'])
-                except ValueError:
-                    # Handle unseen categories
+                except ValueError as ve:
+                    st.warning(f"Unknown Impact values found: {ve}")
+                    # Handle unseen categories by mapping to 0 (None)
                     df['Impact_encoded'] = 0
             else:
                 df['Impact_encoded'] = 0
+            
+            # Ensure Impact_encoded is numeric
+            df['Impact_encoded'] = pd.to_numeric(df['Impact_encoded'], errors='coerce').fillna(0)
+            
+            st.write("Debug: Data types after processing:")
+            st.write(df.dtypes)
+            st.write("Debug: Sample of processed data:")
+            st.write(df.head())
             
             # Get latest timestamp and create prediction window using pandas operations
             latest_time = df['Timestamp'].max()
@@ -331,19 +376,21 @@ def main():
             
             if st.button("🔄 Run Prediction", type="primary"):
                 with st.spinner("Running predictions..."):
-                    # Make predictions
-                    congestion_probs = predict_congestion_proba(df, models, prediction_time)
+                    try:
+                        # Make predictions
+                        st.write("Debug: Starting predictions...")
+                        congestion_probs = predict_congestion_proba(df, models, prediction_time)
 
-                    if congestion_probs is None:
-                        st.error("❌ Not enough data for prediction. Need at least 12 hours of historical data.")
-                    else:
-                        # Get window data for recommendations using pandas operations
-                        window_start = latest_time - pd.Timedelta(hours=12)
-                        window_data = df[(df['Timestamp'] >= window_start) & 
-                                       (df['Timestamp'] <= latest_time)]
-                        
-                        # Get recommendations
-                        recommendations = bandwidth_recommendation(window_data, congestion_probs)
+                        if congestion_probs is None:
+                            st.error("❌ Not enough data for prediction. Need at least 12 hours of historical data.")
+                        else:
+                            # Get window data for recommendations using pandas operations
+                            window_start = latest_time - pd.Timedelta(hours=12)
+                            window_data = df[(df['Timestamp'] >= window_start) & 
+                                           (df['Timestamp'] <= latest_time)]
+                            
+                            # Get recommendations
+                            recommendations = bandwidth_recommendation(window_data, congestion_probs)
                         
                         # Display results
                         st.subheader(f"🎯 Congestion Predictions for {prediction_time}")
